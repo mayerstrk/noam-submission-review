@@ -5,9 +5,15 @@
 | Endpoint | Purpose | Refetch |
 |----------|---------|---------|
 | `GET /search/repositories?q=language:javascript&sort=stars&order=desc&per_page=10` | Top 10 JS repos | 10s interval |
-| `GET /repos/{owner}/{repo}/contributors` | Repo contributors | On-demand (modal open) |
+| `GET /repos/{owner}/{repo}/contributors?per_page=80` | Repo contributors (capped at 80) | On-demand (modal open) |
 
-**Developers page uses NO separate endpoint** — derived from repo owner data.
+**Developers page** — derived from the same top 10 JS repos query (no separate endpoint). Both pages share the same TanStack Query cache via `queryKey: ['repositories']`, so only one API call is made:
+- `owner.login` → developer name
+- `name` → repo name
+- `stargazers_count` → stars in that repo
+- `owner.avatar_url` → developer profile image
+- Same developer may appear more than once if they own multiple top repos
+- List is ordered by stars (desc), with client-side sort in `fetchRepositories()` for stable ordering across refetches
 
 ---
 
@@ -50,22 +56,16 @@ interface Contributor {
   avatar_url: string;
   contributions: number;
 }
-```
 
-### 3. Create Matching Mock Data
-Mocks MUST match real API shape exactly — same fields, same nesting, same nullability:
-```ts
-// api/mocks/repositories.ts — realistic data, 10 entries
-// api/mocks/contributors.ts — realistic data, 10+ entries
+// Derived from the same top 10 JS repos query — NOT a separate API call
+// Each repo maps to one developer entry (same owner can appear multiple times)
+interface Developer {
+  login: string;        // owner.login
+  avatar_url: string;   // owner.avatar_url
+  repoName: string;     // repo.name
+  repoStars: number;    // repo.stargazers_count
+}
 ```
-**Why:** When rate-limited, the app switches to mocks seamlessly. Shape mismatch = broken UI.
-
-### 4. Mock Toggle
-```ts
-// api/mocks/index.ts
-export const USE_MOCKS = import.meta.env.VITE_USE_MOCKS === 'true';
-```
-Service functions check this flag and return mocks or call the API.
 
 ---
 
@@ -78,20 +78,35 @@ const apiClient = axios.create({
   headers: { Accept: 'application/vnd.github.v3+json' },
 });
 
-// Rate-limit interceptor
+// Rate limit budget from response headers, per resource.
+// GitHub tracks "search" (10 req/min) and "core" (60 req/hour) separately.
+export const rateLimitInfo = {
+  search: { remaining: Infinity, limit: 0 },
+  core: { remaining: Infinity, limit: 0 },
+}
+
+// Success interceptor: read x-ratelimit-remaining + x-ratelimit-resource
 apiClient.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 403 &&
-        error.response.headers['x-ratelimit-remaining'] === '0') {
-      const rateLimitError = new Error('GitHub API rate limit exceeded');
-      rateLimitError.name = 'RateLimitError';
-      throw rateLimitError;
+  (response) => {
+    const resource = response.headers['x-ratelimit-resource']
+    if (resource === 'search' || resource === 'core') {
+      rateLimitInfo[resource].remaining = parseInt(headers['x-ratelimit-remaining'])
+      rateLimitInfo[resource].limit = parseInt(headers['x-ratelimit-limit'])
     }
-    throw error;
+    return response
+  },
+  (error) => {
+    // Handle both 403 and 429 (per GitHub docs, rate limits return either status)
+    if ((status === 403 || status === 429) && isRateLimitMessage) {
+      throw new RateLimitError()
+    }
+    throw error
   }
 );
 ```
+
+### ETag / Conditional Requests
+ETags do **NOT** save rate limit for unauthenticated requests. Per GitHub docs: "Making a conditional request does not count against your primary rate limit if a 304 response is returned **and the request was made while correctly authorized with an Authorization header**." Since this project is unauthenticated, ETags provide zero rate limit benefit.
 
 ---
 
@@ -103,30 +118,52 @@ apiClient.interceptors.response.use(
   queryKey: ['repositories'],
   queryFn: fetchRepositories,
   refetchInterval: 10_000,
+  refetchIntervalInBackground: false,   // Stop polling when tab is unfocused
   staleTime: 10_000,
-  gcTime: 5 * 60 * 1000,              // Cache 5 min
   placeholderData: keepPreviousData,    // Show old data during refetch
-  retry: (count, error) => error.name === 'RateLimitError' ? false : count < 2,
+  retry: (count, error) => error instanceof RateLimitError ? false : count < 2,
 }
 ```
 
 **Contributors** (on-demand):
 ```ts
 {
-  queryKey: ['contributors', owner, repo],
-  queryFn: () => fetchContributors(owner, repo),
+  queryKey: ['contributors', repoFullName],
+  queryFn: () => fetchContributors(repoFullName),
   enabled,                              // Only when modal is open
   staleTime: 5 * 60 * 1000,
-  gcTime: 10 * 60 * 1000,
+  gcTime: 30 * 60 * 1000,              // 30 min — contributor data changes rarely
   placeholderData: keepPreviousData,
+  retry: (count, error) => error instanceof RateLimitError ? false : count < 2,
 }
+```
+
+**QueryClient defaults** (main.tsx):
+```ts
+gcTime: 10 * 60 * 1000                 // 10 min global default
+```
+
+**Persistence** (main.tsx):
+```ts
+PersistQueryClientProvider + createAsyncStoragePersister({
+  storage: window.localStorage          // Entire cache persisted, updated after every fetch (1s throttle)
+})
+persistOptions: { maxAge: 20 * 60 * 60 * 1000 }  // 20h — prefer stale data over no data
 ```
 
 ### Key Decisions
 - **Single repos query shared** between Repositories page and Developers page (zero extra calls)
-- **Contributors cached per repo** — same modal opened twice doesn't re-fetch within staleTime
+- **Contributors cached per repo** — same modal opened twice doesn't re-fetch within staleTime. `isPlaceholderData` used in UI to show loading skeletons instead of stale data from a different repo
+- **Contributors capped at 80** — single request with `per_page=80` (constant `CONTRIBUTORS_PER_PAGE`). Avoids pagination loops that drain rate limit. Modal header shows `80+` when response hits the cap
 - **refetchInterval is global** — doesn't reset on navigation between pages
 - **Minimize calls:** 1 polled endpoint + on-demand contributors only
+- **localStorage persistence** — entire query cache (repos + contributors) persisted. On refresh/new tab, data loads instantly; stale queries refetch in background. If refetch fails (rate limit/network), user sees last good data with warning indicators
+- **Focus-only polling** — background tabs make zero API requests. Polling resumes on tab focus
+- **Generous maxAge (20h)** — better to show old data with stale indicators (navbar timestamp + amber warning + overlay message) than no data at all
+- **Rate limit header tracking** — success interceptor reads `x-ratelimit-remaining` and `x-ratelimit-resource` from every response. Stored in a plain `rateLimitInfo` object per resource (`search`, `core`)
+- **429 status code handling** — error interceptor checks both 403 and 429 (per GitHub docs, rate limits can return either)
+- **Approaching-limit warning** — when remaining requests drop to `RATE_LIMIT_WARNING_THRESHOLD` (5), StatusOverlay and ContributorsModal show a subtle "API quota low (X/Y remaining)" banner
+- **ETags not used** — conditional requests only exempt from rate limits when authenticated (per GitHub docs). No benefit for unauthenticated calls
 
 ---
 
@@ -135,8 +172,19 @@ apiClient.interceptors.response.use(
 | Scenario | What Happens |
 |----------|--------------|
 | Normal | Fresh data every 10s |
-| 403 rate-limited | Query fails → `placeholderData` keeps last good data visible |
+| Approaching limit (remaining ≤ 5) | Subtle amber warning: "API quota low (X/Y requests remaining)" |
+| 403 or 429 rate-limited | Query fails → `placeholderData` keeps last good data visible |
 | Rate-limited + no cache | StatusOverlay shows friendly error |
 | Rate limit clears | Next 10s tick succeeds, UI auto-updates |
+| Tab unfocused | Polling stops completely, zero requests |
+| Tab refocused | Immediate refetch if data is stale |
+| Page refresh | Cached data from localStorage shown instantly, background refetch |
+| Refresh + rate-limited | Persisted data shown, navbar shows last update time, amber warning |
+
+### Rate Limit Budgets (Unauthenticated)
+| Resource | Limit | Used By |
+|----------|-------|---------|
+| `search` | 10 req/min | `/search/repositories` — at 10s polling = 6 req/min (60% usage) |
+| `core` | 60 req/hour | `/repos/*/contributors` — on-demand only |
 
 **Core rule:** User ALWAYS sees data. Old data > no data.

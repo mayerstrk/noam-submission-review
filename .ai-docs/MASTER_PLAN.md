@@ -178,6 +178,8 @@
 1. Before creating any file → check `ARCHITECTURE.md`
 2. Before any API work → read `API_STRATEGY.md`
 3. After every task → update `PROGRESS.md`
-4. After every phase → propose commit message → STOP for review
-5. Use **Context7 MCP** for library docs — never guess at APIs
-6. Use **Playwright MCP** to verify UI after visual tasks
+4. **Commit after every subtask** (0.1 → 0.2 → 0.3 etc.) — small, atomic commits
+5. **Big changes/refactors** → commit BEFORE and AFTER for sanity
+6. After every phase → STOP for review
+7. Use **Context7 MCP** for library docs — never guess at APIs
+8. Use **Playwright MCP** to verify UI after visual tasks

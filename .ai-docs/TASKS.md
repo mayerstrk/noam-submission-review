@@ -2,6 +2,7 @@
 
 > Pick the next `TODO` task whose dependencies are all `DONE`.
 > Each task = one focused unit of work. Update `PROGRESS.md` after each.
+> **Commit after every subtask.** Big changes/refactors → commit BEFORE and AFTER.
 
 ---
 
@@ -27,8 +28,8 @@
 | 1.1 | Define TS interfaces | Architect | 0.6 | `types/github.ts`: Repository, RepositorySearchResponse, Contributor. See `API_STRATEGY.md` |
 | 1.2 | Axios instance | Implementer | 1.1 | `api/client.ts` with baseURL, Accept header, rate-limit interceptor (403 → RateLimitError) |
 | 1.3 | Validate API shapes | Implementer | 1.2 | Make real calls, compare responses to interfaces, fix mismatches (esp. nullable fields) |
-| 1.4 | Mock data | Implementer | 1.3 | `api/mocks/` — realistic data matching validated types exactly. Toggle via `VITE_USE_MOCKS` |
-| 1.5 | API service functions | Implementer | 1.2, 1.4 | `api/github.ts`: `fetchRepositories()`, `fetchContributors(owner, repo)`. Check mock toggle |
+| 1.4 | ~~Mock data~~ | ~~Implementer~~ | ~~1.3~~ | Removed — app uses real API with localStorage persistence as fallback |
+| 1.5 | API service functions | Implementer | 1.2 | `api/github.ts`: `fetchRepositories()`, `fetchContributors(owner, repo)` |
 | 1.6 | Query hooks | Implementer | 1.5 | `useRepositories` (10s refetch, keepPreviousData), `useContributors` (enabled flag, on-demand). **Context7:** verify TanStack Query v5 options |
 | 1.7 | Rate-limit handling | Implementer | 1.6 | No retry on RateLimitError, gcTime keeps stale data, rate-limit status flag for UI |
 | 1.8 | Timestamp hook | Implementer | 1.6 | `useQueryTimestamp` — reads `dataUpdatedAt`, formats for navbar display |
@@ -41,17 +42,50 @@
 
 | # | Task | Role | Deps | Key Details |
 |---|------|------|------|-------------|
-| 2.1 | Navbar | Implementer+Designer | 1.8 | TanStack Router `<Link>`, active state, UpdatedAtBadge, rate-limit indicator. See design system |
-| 2.2 | RepositoryCard | Implementer+Designer | 1.6 | All fields: name (link), stars, desc, license (null-safe), forks, issues, "View Contributors" btn. Lucide icons |
-| 2.3 | HorizontalScroll | Implementer+Designer | — | `overflow-x-auto`, snap scroll, thin custom scrollbar, no animations |
-| 2.4 | Repositories page | Implementer | 2.1–2.3 | Compose: useRepositories → HorizontalScroll → RepositoryCard[]. Loading skeletons |
-| 2.5 | ContributorsModal | Implementer+Designer | 2.4 | shadcn Dialog, useContributors (enabled on open). Avatars, names, contribution count. **Context7:** verify Dialog API |
-| 2.6 | DeveloperCard | Implementer+Designer | 1.6 | `w-[360px]` fixed-width card for horizontal scroll. Top: developer name (bold), sub-line: repo name – stars. Bottom: large avatar (`w-24 h-24`). Matches mockup layout |
-| 2.7 | Developers page | Implementer | 2.1, 2.6 | Derive developers from useRepositories (owner = developer). HorizontalScroll layout (same pattern as Repositories page, per mockup) |
-| 2.8 | StatusOverlay | Implementer+Designer | 2.4, 2.7 | Shared: loading (skeletons), error (icon + retry), rate-limited (amber banner), empty. Used by both pages |
-| 2.9 | Visual verification | QA | 2.8 | **Playwright:** both pages, modal, scroll, timestamps, console check |
+| 2.1 | Navbar | ✅ Done | 1.8 | flex-col centered on mobile, grid-cols-3 on md+. Title+Code2+UpdatedAtBadge left, Links centered. isError badge (generic). |
+| 2.2 | RepositoryCard | ✅ Done | 1.6 | Responsive (85vw/350/420/480px), stacked detail rows, name+stars flex-col→sm:flex-row, min-w-0 truncation. Hover border-primary/50 |
+| 2.3 | HorizontalScroll | ✅ Done | — | overflow-x-auto, snap scroll, items-stretch, thin dark scrollbar, inner px-6 alignment |
+| 2.4 | Repositories page | ✅ Done | 2.1–2.3 | StatusOverlay (hasData) + HorizontalScroll + RepositoryCards + ContributorsModal. Vertically centered. |
+| 2.5 | ContributorsModal | ✅ Done | 2.4 | shadcn Dialog, isPlaceholderData for loading on repo switch, per-repo cache, dark scrollbar, truncated names, green contribution count. Virtualized list (`@tanstack/react-virtual`), total count header (80+ cap indicator), rate-limit/error handling with retry |
+| 2.6 | DeveloperCard | ✅ Done | 1.6 | Responsive (85vw/350/420/480px), min-w-0 overflow-hidden on CardHeader, truncated login+repo. Large centered avatar. |
+| 2.7 | Developers page | ✅ Done | 2.1, 2.6 | useRepositories dedup, Developer[] mapping, HorizontalScroll, vertically centered, hasData prop |
+| 2.8 | StatusOverlay | ✅ Done | 2.4, 2.7 | Responsive skeleton widths, hasData-aware rate-limit messaging (no retry — retrying during rate-limit extends cooldown), proper padding on all states. Shared. |
+| 2.9 | Visual verification | ✅ Done | 2.8 | Playwright verified at 1440/375/287/241px. Responsive layout, truncation, error states all correct. |
 
 → **COMMIT → STOP → REVIEW**
+
+---
+
+## Pre-Phase 3: Visual Enhancement (hover-tilt)
+
+| # | Task | Role | Deps | Key Details |
+|---|------|------|------|-------------|
+| HT.1 | Install hover-tilt + TS types | ✅ Done | 2.9 | npm install hover-tilt, web component import in main.tsx, JSX type declaration |
+| HT.2 | Wrap cards with hover-tilt | ✅ Done | HT.1 | `<hover-tilt>` wrapper on RepositoryCard + DeveloperCard, CSS ::part() selectors |
+| HT.3 | Enhanced shadow + gradients | ✅ Done | HT.2 | 5-layer neon underglow, idle resting shadow, luminance-beam + aurora-sweep custom gradients |
+| HT.4 | Grey theme | ✅ Done | HT.2 | bg hsl(222 18% 20%), card hsl(222 22% 14%), brighter muted-foreground for readability |
+| HT.5 | Fix card clipping | ✅ Done | HT.2 | -my-10 py-10 pb-14 padding trick on HorizontalScroll outer div |
+| HT.6 | Playwright verification | ✅ Done | HT.3-5 | Both pages render, hover effects work, modal functional, zero new console errors |
+| HT.7 | Card dimension parity + content sizing rebalance | ✅ Done | HT.6 | Shared `CARD_BASE_DIMENSIONS` (`min-h-[24rem]` + responsive widths) for RepositoryCard and DeveloperCard. Developer card uses larger avatar/text. Repository description uses 4-line baseline + stronger responsive typography on wider screens. |
+| HT.8 | Verification fallback when Playwright MCP fails | ✅ Done | HT.7 | If MCP session aborts, use localhost manual checks and user-provided screenshots, then continue with lint/type checks and document limitation in PROGRESS.md. |
+| HT.9 | Repository card visual weight retune | ✅ Done | HT.8 | Increased repository text presence (title/stars/meta/button), kept mobile-safe sizing, and switched RepositoryCard hover-tilt profile to stronger luminance/soft-light settings while preserving shared card dimensions. |
+
+→ **COMMIT → STOP → REVIEW**
+
+---
+
+## Tooling Notes
+
+### Playwright MCP — Getting it to work
+If `browser_navigate` fails with **"Opening in existing browser session" → immediate exit**, the Playwright MCP Chrome profile cache is stale/locked.
+
+**Fix:** Delete the stale profile directory and retry:
+```bash
+rm -rf ~/Library/Caches/ms-playwright/mcp-chrome-*
+```
+Then call `browser_install` once, then `browser_navigate` again — it will launch a fresh Chrome instance.
+
+**Screenshots** go in `.playwright-mcp/` (not project root).
 
 ---
 
@@ -59,11 +93,11 @@
 
 | # | Task | Role | Deps | Key Details |
 |---|------|------|------|-------------|
-| 3.1 | Code review | Reviewer | 2.9 | Full audit: DRY, naming, no comments, no `any`, conventions. See reviewer checklist in `MASTER_PLAN.md` |
-| 3.2 | Rate-limit test | QA | 3.1 | Toggle mocks → simulate 403. Verify stale data displays, indicator shows, no crash |
-| 3.3 | Responsive check | QA | 3.1 | **Playwright:** viewports 1440/1024/768px. No broken layouts |
-| 3.4 | Full walkthrough | QA | 3.2, 3.3 | E2E: load → repos → scroll → modal → close → devs → verify timestamp updates |
-| 3.5 | Console + network audit | QA | 3.4 | Zero console errors. No redundant API calls. 10s interval correct, no reset on nav |
+| 3.1 | Code review | ✅ Done | 2.9 | Full audit: DRY, naming, no comments, no `any`, conventions. See reviewer checklist in `MASTER_PLAN.md` |
+| 3.2 | Rate-limit test | ✅ Done | 3.1 | Automated: Playwright `api.spec.ts` + `error-states.spec.ts` — 403 header/message detection, no-retry, non-rate-limit 403 → generic error |
+| 3.3 | Responsive check | ✅ Done | 3.1 | Automated: Playwright `responsive.spec.ts` — 1440/768/375px, mobile modal usability, no body overflow |
+| 3.4 | Full walkthrough | ✅ Done | 3.2, 3.3 | Automated: Playwright `navigation.spec.ts`, `repositories.spec.ts`, `developers.spec.ts` — redirect, nav, cards, fields, modal, scroll |
+| 3.5 | Console + network audit | ✅ Done | 3.4 | Automated: Playwright `api.spec.ts` — correct endpoint/params, lazy contributors, query dedup, retry on 500 |
 | 3.6 | Performance | Reviewer | 3.5 | Re-renders, memo usage, query efficiency, contributors only fetched when modal open |
 | 3.7 | Final cleanup | Reviewer | 3.6 | Remove unused imports/dead code, final DRY pass, update PROGRESS.md |
 
