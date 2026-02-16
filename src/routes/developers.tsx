@@ -20,7 +20,7 @@ function DevelopersPage() {
       repoStars: repo.stargazers_count,
     })) ?? [];
 
-  return isLoading ? (
+  return !data || isLoading ? (
     <RespositoryCardSkeleton />
   ) : (
     <div className="w-full overflow-x-hidden">

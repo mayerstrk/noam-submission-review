@@ -15,7 +15,7 @@ function RepositoriesGallery() {
   const [selectedRepo, setSelectedRepo] = useState<string | null>(null);
   const repos = data?.data?.items ?? [];
 
-  return isLoading ? (
+  return !data || isLoading ? (
     <RespositoryCardSkeleton />
   ) : (
     <div className="w-full overflow-x-hidden">
