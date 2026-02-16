@@ -4,30 +4,21 @@ import { useRepositories } from "@/hooks/queries/useRepositories"
 import { HorizontalScroll } from "@/components/HorizontalScroll"
 import { RepositoryCard } from "@/components/RepositoryCard"
 import { ContributorsModal } from "@/components/ContributorsModal"
-import { StatusOverlay } from "@/components/StatusOverlay"
-import { PAGE_LAYOUT } from "@/lib/card-styles"
+import RespositoryCardSkeleton from "@/components/RespositoryCardSkeleton"
 
 export const Route = createFileRoute("/repositories")({
-  component: RepositoriesPage,
+  component: RepositoriesGallery,
 })
 
-function RepositoriesPage() {
-  const { data, isLoading, isError, isRateLimited, refetch } = useRepositories()
-  const [selectedRepo, setSelectedRepo] = useState<string | null>(null)
+function RepositoriesGallery() {
+  const { data, isLoading } = useRepositories();
+  const [selectedRepo, setSelectedRepo] = useState<string | null>(null);
+  const repos = data?.data?.items ?? [];
 
-  const repos = data?.items ?? []
-
-  return (
-    <div className={PAGE_LAYOUT}>
-      <StatusOverlay
-        isLoading={isLoading}
-        isError={isError && !isRateLimited}
-        isRateLimited={isRateLimited}
-        isEmpty={!isLoading && !isError && repos.length === 0}
-        hasData={repos.length > 0}
-        onRetry={() => refetch()}
-      />
-
+  return !data || isLoading ? (
+    <RespositoryCardSkeleton />
+  ) : (
+    <div className="w-full overflow-x-hidden">
       {repos.length > 0 && (
         <HorizontalScroll>
           {repos.map((repo) => (
@@ -39,11 +30,10 @@ function RepositoriesPage() {
           ))}
         </HorizontalScroll>
       )}
-
       <ContributorsModal
         repoFullName={selectedRepo}
         onClose={() => setSelectedRepo(null)}
       />
     </div>
-  )
+  );
 }

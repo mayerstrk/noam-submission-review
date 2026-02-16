@@ -14,7 +14,8 @@ export interface Repository {
   }
 }
 
-export interface RepositorySearchResponse {
+export interface RepositorySearchData {
+  message: string
   total_count: number
   items: Repository[]
 }
