@@ -14,7 +14,7 @@ function RepositoriesGallery() {
   const { data, isLoading } = useRepositories()
   const [selectedRepo, setSelectedRepo] = useState<string | null>(null)
 
-  const repos = data?.items ?? []
+  const repos = data?.data?.items ?? []
   return isLoading ? <RespositoryCardSkeleton /> :
     (
       <>

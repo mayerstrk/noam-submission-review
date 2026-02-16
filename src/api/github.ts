@@ -1,11 +1,12 @@
 import apiClient from "@/api/client"
-import type { Contributor, RepositorySearchResponse } from "@/types/github"
+import type { Contributor, RepositorySearchData } from "@/types/github"
 import { CONTRIBUTORS_PER_PAGE } from "@/lib/constants"
+import type { AxiosResponse } from "axios"
 
 export async function fetchRepositories(
   signal?: AbortSignal,
-): Promise<RepositorySearchResponse> {
-  const { data } = await apiClient.get<RepositorySearchResponse>(
+): Promise<AxiosResponse<RepositorySearchData>> {
+  const response = await apiClient.get<RepositorySearchData>(
     "/search/repositories",
     {
       params: {
@@ -18,7 +19,7 @@ export async function fetchRepositories(
     },
   )
 
-  return data
+  return response
 }
 
 export async function fetchContributors(
