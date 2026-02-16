@@ -11,7 +11,7 @@ export const Route = createFileRoute("/developers")({
 })
 
 function DevelopersPage() {
-  const { data, isLoading, isError, isRateLimited, refetch } = useRepositories()
+  const { data, isLoading, isError, isRateLimited, refetch, error } = useRepositories()
 
   const developers: Developer[] =
     data?.items.map((repo) => ({
@@ -30,6 +30,7 @@ function DevelopersPage() {
         isEmpty={!isLoading && !isError && developers.length === 0}
         hasData={developers.length > 0}
         onRetry={() => refetch()}
+        error={error}
       />
 
       {developers.length > 0 && (

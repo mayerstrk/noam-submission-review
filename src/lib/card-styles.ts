@@ -4,7 +4,7 @@ export const CARD_BASE_WIDTH =
 export const CARD_BASE_DIMENSIONS = `min-h-[24rem] ${CARD_BASE_WIDTH}`
 
 export const PAGE_LAYOUT =
-  "flex min-h-[calc(100vh-8rem)] flex-col justify-center space-y-4"
+  "flex flex-col justify-center space-y-4"
 
 const SCROLLBAR_BASE =
   "[&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-muted [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-muted-foreground/30"

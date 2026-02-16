@@ -11,7 +11,6 @@ import {
 import { Skeleton } from "@/components/ui/skeleton"
 import { Button } from "@/components/ui/button"
 import { useContributors } from "@/hooks/queries/useContributors"
-import { rateLimitInfo } from "@/api/client"
 import { SCROLLBAR_VERTICAL } from "@/lib/card-styles"
 import {
   SKELETON_COUNT,
@@ -35,14 +34,18 @@ export function ContributorsModal({
     data,
     isLoading,
     isError,
-    isRateLimited,
     isPlaceholderData,
     refetch,
   } = useContributors(repoFullName ?? "", !!repoFullName)
 
+  //TODO: remove dummy condition
+  const isRateLimited = false
+
   const showLoading = isLoading || isPlaceholderData
 
-  const { remaining, limit } = rateLimitInfo.core
+  //TODO: remove dummy condition
+  const { remaining, limit } = { remaining: 2, limit: 10 }
+
   const isApproachingLimit =
     remaining <= RATE_LIMIT_WARNING_THRESHOLD && remaining > 0
 
