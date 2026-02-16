@@ -5,6 +5,7 @@ import {
   REPOS_REFETCH_INTERVAL,
   REPOS_STALE_TIME,
 } from "@/lib/constants"
+import type { AxiosError } from "axios"
 
 export function useRepositories() {
   const query = useQuery({
@@ -19,6 +20,6 @@ export function useRepositories() {
 
   return {
     ...query,
-    error: query.error || null
+    error: query.error as AxiosError || null
   }
 }

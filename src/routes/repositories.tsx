@@ -11,29 +11,29 @@ export const Route = createFileRoute("/repositories")({
 })
 
 function RepositoriesGallery() {
-  const { data, isLoading } = useRepositories()
-  const [selectedRepo, setSelectedRepo] = useState<string | null>(null)
+  const { data, isLoading } = useRepositories();
+  const [selectedRepo, setSelectedRepo] = useState<string | null>(null);
+  const repos = data?.data?.items ?? [];
 
-  const repos = data?.data?.items ?? []
-  return isLoading ? <RespositoryCardSkeleton /> :
-    (
-      <>
-        {repos.length > 0 && (
-          <HorizontalScroll>
-            {repos.map((repo) => (
-              <RepositoryCard
-                key={repo.id}
-                repository={repo}
-                onViewContributors={setSelectedRepo}
-              />
-            ))}
-          </HorizontalScroll>
-        )}
-
-        <ContributorsModal
-          repoFullName={selectedRepo}
-          onClose={() => setSelectedRepo(null)}
-        />
-      </>
-    )
+  return isLoading ? (
+    <RespositoryCardSkeleton />
+  ) : (
+    <div className="w-full overflow-x-hidden">
+      {repos.length > 0 && (
+        <HorizontalScroll>
+          {repos.map((repo) => (
+            <RepositoryCard
+              key={repo.id}
+              repository={repo}
+              onViewContributors={setSelectedRepo}
+            />
+          ))}
+        </HorizontalScroll>
+      )}
+      <ContributorsModal
+        repoFullName={selectedRepo}
+        onClose={() => setSelectedRepo(null)}
+      />
+    </div>
+  );
 }

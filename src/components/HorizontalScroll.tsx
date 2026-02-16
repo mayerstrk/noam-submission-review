@@ -5,6 +5,7 @@ interface HorizontalScrollProps {
   children: ReactNode
 }
 
+
 export function HorizontalScroll({ children }: HorizontalScrollProps) {
   return (
     <div

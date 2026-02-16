@@ -16,7 +16,7 @@ function RootLayout() {
           <Navbar />
         </div>
       </header>
-      <main className="py-6 relative overflow-auto flex-col flex justify-center items-center flex-1">
+      <main className="py-6 relative flex-col flex justify-center items-center flex-1 overflow-hidden">
         <Alert />
         <Outlet />
       </main>

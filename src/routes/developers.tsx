@@ -10,7 +10,7 @@ export const Route = createFileRoute("/developers")({
 })
 
 function DevelopersPage() {
-  const { data, isLoading } = useRepositories()
+  const { data, isLoading } = useRepositories();
 
   const developers: Developer[] =
     data?.data?.items.map((repo) => ({
@@ -18,20 +18,19 @@ function DevelopersPage() {
       avatar_url: repo.owner.avatar_url,
       repoName: repo.name,
       repoStars: repo.stargazers_count,
-    })) ?? []
+    })) ?? [];
 
-  return isLoading ? <RespositoryCardSkeleton /> :
-    (
-      <>
-        {
-          developers.length > 0 && (
-            <HorizontalScroll>
-              {developers.map((dev, index) => (
-                <DeveloperCard key={`${dev.login}-${index}`} developer={dev} />
-              ))}
-            </HorizontalScroll>
-          )
-        }
-      </>
-    )
+  return isLoading ? (
+    <RespositoryCardSkeleton />
+  ) : (
+    <div className="w-full overflow-x-hidden">
+      {developers.length > 0 && (
+        <HorizontalScroll>
+          {developers.map((dev, index) => (
+            <DeveloperCard key={`${dev.login}-${index}`} developer={dev} />
+          ))}
+        </HorizontalScroll>
+      )}
+    </div>
+  );
 }
